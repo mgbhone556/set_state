@@ -16,6 +16,10 @@ class _HomePageState extends State<SetStateHomePage> {
   bool _isObscure = true;
   int _imageIndex = 0;
   bool _isDarkTheme = false;
+  bool _isLoading = false;
+  final List<String> _todoList = [];
+  final TextEditingController _todoController = TextEditingController();
+  String? _errorText;
 
   final List<String> _images = [
     'images/OIP.webp',
@@ -23,23 +27,10 @@ class _HomePageState extends State<SetStateHomePage> {
     'images/demon_salyer.jpg',
   ];
 
-  void _onThemeChanged(bool value) {
-    setState(() {
-      _isDarkTheme = value;
-    });
-  }
-
-  void _nextImage() {
-    setState(() {
-      _imageIndex = (_imageIndex + 1) % _images.length;
-    });
-  }
-
-  void _togglePassword() {
-    setState(() {
-      _isObscure = !_isObscure;
-    });
-  }
+  void _onThemeChanged(bool value) => setState(() => _isDarkTheme = value);
+  void _nextImage() =>
+      setState(() => _imageIndex = (_imageIndex + 1) % _images.length);
+  void _togglePassword() => setState(() => _isObscure = !_isObscure);
 
   void _changeColor() {
     setState(() {
@@ -52,17 +43,29 @@ class _HomePageState extends State<SetStateHomePage> {
     });
   }
 
-  void _decreaseCounter() {
-    setState(() {
-      if (_counter > 0) _counter--;
-    });
+  Future<void> _simulateLoading() async {
+    setState(() => _isLoading = true);
+    await Future.delayed(const Duration(seconds: 2));
+    setState(() => _isLoading = false);
   }
 
-  void _incrementCounter() {
-    setState(() {
-      _counter++;
-    });
+  void _addTask() {
+    if (_todoController.text.isNotEmpty) {
+      setState(() {
+        _todoList.add(_todoController.text);
+        _todoController.clear();
+      });
+    }
   }
+
+  void _removeTask(int index) {
+    setState(() => _todoList.removeAt(index));
+  }
+
+  void _incrementCounter() => setState(() => _counter++);
+  void _decreaseCounter() => setState(() {
+    if (_counter > 0) _counter--;
+  });
 
   @override
   Widget build(BuildContext context) {
@@ -79,56 +82,61 @@ class _HomePageState extends State<SetStateHomePage> {
         child: Padding(
           padding: const EdgeInsets.all(20.0),
           child: Column(
-            mainAxisAlignment: MainAxisAlignment.center,
             children: [
               Row(
-                mainAxisAlignment: MainAxisAlignment.center,
+                mainAxisAlignment: MainAxisAlignment.spaceBetween,
                 children: [
-                  Icon(
-                    Icons.wb_sunny,
-                    color: _isDarkTheme ? Colors.grey : Colors.orange,
+                  Row(
+                    children: [
+                      Icon(
+                        Icons.wb_sunny,
+                        color: _isDarkTheme ? Colors.grey : Colors.orange,
+                      ),
+                      Switch(value: _isDarkTheme, onChanged: _onThemeChanged),
+                      Icon(
+                        Icons.nightlight_round,
+                        color: _isDarkTheme ? Colors.blue : Colors.grey,
+                      ),
+                    ],
                   ),
-                  Switch(value: _isDarkTheme, onChanged: _onThemeChanged),
-                  Icon(
-                    Icons.nightlight_round,
-                    color: _isDarkTheme ? Colors.blue : Colors.grey,
-                  ),
+                  _isLoading
+                      ? const CircularProgressIndicator()
+                      : ElevatedButton(
+                          onPressed: _simulateLoading,
+                          child: const Text("Load"),
+                        ),
                 ],
               ),
-              const SizedBox(height: 20),
+              const Divider(),
 
-              const Text(
-                "Tap image to change",
-                style: TextStyle(fontStyle: FontStyle.italic),
-              ),
-              const SizedBox(height: 10),
               GestureDetector(
                 onTap: _nextImage,
                 child: ClipRRect(
                   borderRadius: BorderRadius.circular(15),
                   child: Image.asset(
                     _images[_imageIndex],
-                    height: 180,
-                    width: 180,
+                    height: 150,
+                    width: 250,
                     fit: BoxFit.cover,
-
-                    errorBuilder: (context, error, stackTrace) => Container(
-                      height: 180,
-                      width: 180,
+                    errorBuilder: (context, e, s) => Container(
+                      height: 150,
                       color: Colors.grey[300],
-                      child: const Icon(Icons.image_not_supported, size: 50),
+                      child: const Icon(Icons.image),
                     ),
                   ),
                 ),
               ),
-              const SizedBox(height: 30),
+              const SizedBox(height: 20),
 
               TextField(
                 obscureText: _isObscure,
+                onChanged: (val) => setState(
+                  () => _errorText = val.length < 6 ? "Too short" : null,
+                ),
                 style: TextStyle(color: textColor),
                 decoration: InputDecoration(
-                  labelText: "Password Field",
-                  labelStyle: TextStyle(color: textColor),
+                  labelText: "Password",
+                  errorText: _errorText,
                   border: const OutlineInputBorder(),
                   suffixIcon: IconButton(
                     icon: Icon(
@@ -138,58 +146,68 @@ class _HomePageState extends State<SetStateHomePage> {
                   ),
                 ),
               ),
-              const SizedBox(height: 30),
+              const SizedBox(height: 20),
+
+              TextField(
+                controller: _todoController,
+                style: TextStyle(color: textColor),
+                decoration: InputDecoration(
+                  hintText: "Add a task...",
+                  suffixIcon: IconButton(
+                    icon: const Icon(Icons.add_box),
+                    onPressed: _addTask,
+                  ),
+                ),
+              ),
+              ListView.builder(
+                shrinkWrap: true,
+                physics: const NeverScrollableScrollPhysics(),
+                itemCount: _todoList.length,
+                itemBuilder: (context, index) {
+                  return ListTile(
+                    title: Text(
+                      _todoList[index],
+                      style: TextStyle(color: textColor),
+                    ),
+                    trailing: IconButton(
+                      icon: const Icon(Icons.delete, color: Colors.red),
+                      onPressed: () => _removeTask(index),
+                    ),
+                  );
+                },
+              ),
+              const Divider(),
 
               Text(
-                'Background Color Changer',
+                'Counter: $_counter',
                 style: TextStyle(
-                  fontSize: 18,
-                  fontWeight: FontWeight.bold,
+                  fontSize: 24,
                   color: textColor,
+                  fontWeight: FontWeight.bold,
                 ),
               ),
               const SizedBox(height: 10),
+              Row(
+                mainAxisAlignment: MainAxisAlignment.center,
+                children: [
+                  FloatingActionButton.small(
+                    heroTag: "b1",
+                    onPressed: _decreaseCounter,
+                    child: const Icon(Icons.remove),
+                  ),
+                  const SizedBox(width: 20),
+                  FloatingActionButton.small(
+                    heroTag: "b2",
+                    onPressed: _incrementCounter,
+                    child: const Icon(Icons.add),
+                  ),
+                ],
+              ),
+              const SizedBox(height: 20),
               ElevatedButton.icon(
                 onPressed: _changeColor,
-                icon: const Icon(Icons.color_lens),
-                label: const Text("Change Color"),
-              ),
-              const SizedBox(height: 40),
-
-              Container(
-                padding: const EdgeInsets.all(20),
-                decoration: BoxDecoration(
-                  color: Colors.white.withOpacity(0.2),
-                  borderRadius: BorderRadius.circular(10),
-                ),
-                child: Column(
-                  children: [
-                    Text('Counter Value:', style: TextStyle(color: textColor)),
-                    Text(
-                      '$_counter',
-                      style: Theme.of(
-                        context,
-                      ).textTheme.headlineLarge?.copyWith(color: textColor),
-                    ),
-                    const SizedBox(height: 10),
-                    Row(
-                      mainAxisAlignment: MainAxisAlignment.center,
-                      children: [
-                        FloatingActionButton.small(
-                          onPressed: _decreaseCounter,
-                          heroTag: "btn1",
-                          child: const Icon(Icons.remove),
-                        ),
-                        const SizedBox(width: 30),
-                        FloatingActionButton.small(
-                          onPressed: _incrementCounter,
-                          heroTag: "btn2",
-                          child: const Icon(Icons.add),
-                        ),
-                      ],
-                    ),
-                  ],
-                ),
+                icon: const Icon(Icons.palette),
+                label: const Text("Random BG Color"),
               ),
             ],
           ),
